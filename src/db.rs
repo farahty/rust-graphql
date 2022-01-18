@@ -10,10 +10,8 @@ async fn connect() -> Result<Database, mongodb::error::Error> {
 }
 
 pub async fn collection<T>(model: &str) -> Result<Collection<T>, String> {
-    if let Ok(db) = connect().await {
-        let coll = db.collection::<T>(model);
-        return Ok(coll);
+    match connect().await {
+        Ok(db) => Ok(db.collection::<T>(model)),
+        Err(err) => Err(err.to_string()),
     }
-
-    Err("unable to connect and get the collection".to_string())
 }

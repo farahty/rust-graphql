@@ -21,7 +21,7 @@ async fn main() {
 
     let schema = schema::build_schema();
     let app = Route::new().at("/", get(graphql_playground).post(GraphQL::new(schema)));
-
+    services::brand::find().await;
     Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await
