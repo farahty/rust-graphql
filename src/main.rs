@@ -1,7 +1,8 @@
 mod db;
 mod models;
-mod schema;
+mod resolvers;
 mod services;
+
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use async_graphql_poem::GraphQL;
 use dotenv::dotenv;
@@ -19,9 +20,13 @@ async fn graphql_playground() -> impl IntoResponse {
 async fn main() {
     dotenv().ok();
 
-    let schema = schema::build_schema();
+    let client = db::connect()
+        .await
+        .expect("failed to connect to database ...");
+
+    let schema = resolvers::build_schema().data(client.clone()).finish();
     let app = Route::new().at("/", get(graphql_playground).post(GraphQL::new(schema)));
-    services::brand::find().await;
+
     Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await

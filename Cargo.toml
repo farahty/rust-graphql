@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.15.0", features = ["full"] }
 poem = "1.2.25"
-async-graphql = "3.0.20"
+async-graphql = { version= "3.0.20", features=["bson"] }
 async-graphql-poem = "3.0.20"
 mongodb="2.1.0"
 dotenv = "0.15.0"

@@ -1,21 +1,35 @@
-use crate::db;
-use crate::models::Brand;
+use async_graphql::Context;
 use futures::TryStreamExt;
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    Database,
+};
 
-pub async fn find() -> Vec<Brand> {
-    match db::collection::<Brand>("brands").await {
-        Ok(coll) => {
-            let mut brands: Vec<Brand> = vec![];
+use crate::models::Brand;
 
-            let mut cursor = coll.find(None, None).await.expect("failed to load brands");
+pub(crate) async fn find(ctx: &Context<'_>) -> Vec<Brand> {
+    let mut brands: Vec<Brand> = Vec::new();
+    let coll = ctx
+        .data::<Database>()
+        .unwrap()
+        .collection::<Brand>("brands");
 
-            while let Some(brand) = cursor.try_next().await.unwrap() {
-                println!("{:?}", brand);
-                brands.push(brand);
-            }
+    let mut cursor = coll.find(None, None).await.expect("failed to load brands");
 
-            brands
-        }
-        Err(_) => vec![],
+    while let Some(brand) = cursor.try_next().await.unwrap() {
+        brands.push(brand);
     }
+
+    brands
+}
+
+pub(crate) async fn find_by_id(ctx: &Context<'_>, id: String) -> Option<Brand> {
+    let coll = ctx
+        .data::<Database>()
+        .unwrap()
+        .collection::<Brand>("brands");
+
+    let oid = ObjectId::parse_str(id).unwrap();
+
+    coll.find_one(doc! {"_id": oid}, None).await.unwrap()
 }

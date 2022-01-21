@@ -1,2 +1,2 @@
 mod brand;
-pub use brand::Brand;
+pub(crate) use brand::Brand;
