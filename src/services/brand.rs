@@ -8,19 +8,15 @@ use mongodb::{
 use crate::models::Brand;
 
 pub(crate) async fn find(ctx: &Context<'_>) -> Vec<Brand> {
-    let mut brands: Vec<Brand> = Vec::new();
-    let coll = ctx
-        .data::<Database>()
+    ctx.data::<Database>()
         .unwrap()
-        .collection::<Brand>("brands");
-
-    let mut cursor = coll.find(None, None).await.expect("failed to load brands");
-
-    while let Some(brand) = cursor.try_next().await.unwrap() {
-        brands.push(brand);
-    }
-
-    brands
+        .collection::<Brand>("brands")
+        .find(None, None)
+        .await
+        .unwrap()
+        .try_collect::<Vec<Brand>>()
+        .await
+        .unwrap()
 }
 
 pub(crate) async fn find_by_id(ctx: &Context<'_>, id: String) -> Option<Brand> {

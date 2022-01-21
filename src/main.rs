@@ -3,7 +3,10 @@ mod models;
 mod resolvers;
 mod services;
 
+use std::io::Write;
+
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
+
 use async_graphql_poem::GraphQL;
 use dotenv::dotenv;
 
@@ -12,7 +15,7 @@ use models::Brand;
 use mongodb::Database;
 use poem::listener::TcpListener;
 use poem::web::{Data, Html, Json};
-use poem::{get, handler, middleware::AddData, EndpointExt, IntoResponse, Route, Server};
+use poem::{get, handler, EndpointExt, IntoResponse, Route, Server};
 
 #[handler]
 async fn graphql_playground() -> impl IntoResponse {
@@ -34,16 +37,19 @@ async fn get_brands(db: Data<&Database>) -> Json<serde_json::Value> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
     let database = db::connect().await;
     let schema = resolvers::build_schema().data(database.clone()).finish();
+
+    std::fs::File::create("app.schema.gql")?.write_all(&schema.sdl().as_bytes())?;
+
     let app = Route::new()
         .at("/", get(graphql_playground).post(GraphQL::new(schema)))
         .at("/brands", get(get_brands))
-        .with(AddData::new(database));
+        .data(database.clone());
 
     let server = Server::new(TcpListener::bind(format!("0.0.0.0:{}", port)));
 
@@ -55,4 +61,6 @@ async fn main() {
             port, error
         )
     }
+
+    Ok(())
 }
