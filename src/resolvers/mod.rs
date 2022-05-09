@@ -1,10 +1,14 @@
-pub mod brand;
+pub mod todo;
+pub mod user;
 
-use async_graphql::{EmptyMutation, EmptySubscription, MergedObject, Schema, SchemaBuilder};
+use async_graphql::{EmptySubscription, MergedObject, Schema, SchemaBuilder};
 
 #[derive(Default, MergedObject)]
-pub struct Query(brand::BrandsQuery);
+pub struct Query(todo::TodosQuery, user::UsersQuery);
 
-pub fn build_schema() -> SchemaBuilder<Query, EmptyMutation, EmptySubscription> {
-    Schema::build(Query::default(), EmptyMutation, EmptySubscription)
+#[derive(Default, MergedObject)]
+pub struct Mutation(user::UsersMutation);
+
+pub fn build_schema() -> SchemaBuilder<Query, Mutation, EmptySubscription> {
+    Schema::build(Query::default(), Mutation::default(), EmptySubscription)
 }

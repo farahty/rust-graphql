@@ -3,17 +3,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub(crate) enum Status {
-    #[serde(rename = "draft")]
     Draft,
-    #[serde(rename = "published")]
     Published,
-    #[serde(rename = "trashed")]
     Trashed,
-    #[serde(rename = "deleted")]
     Deleted,
-    #[serde(rename = "scheduled")]
     Scheduled,
-    #[serde(rename = "expired")]
     Expired,
 }
 

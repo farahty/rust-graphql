@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Status, Translated};
 
 #[derive(SimpleObject, Debug, Serialize, Deserialize)]
-pub(crate) struct Brand {
+pub(crate) struct Todo {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
     pub slug: String,
