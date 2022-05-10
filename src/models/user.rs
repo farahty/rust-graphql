@@ -135,8 +135,8 @@ pub(crate) struct VerifyOTPLoginInput {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct JwtClaims {
     pub sub: String,
-    exp: u64,
-    user: JwtUser,
+    pub exp: u64,
+    pub user: JwtUser,
 }
 
 impl User {
