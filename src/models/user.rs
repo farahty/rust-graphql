@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     db::GraphQLResult,
-    utils::{CheckPassword, HashPassword},
+    utils::{CheckOTP, CheckPassword, HashPassword},
 };
 
 #[derive(SimpleObject, Debug, Serialize, Deserialize)]
@@ -34,6 +34,12 @@ pub(crate) struct User {
 impl CheckPassword for User {
     fn get_hashed_password(&self) -> Option<String> {
         self.password.clone()
+    }
+}
+
+impl CheckOTP for User {
+    fn get_hashed_otp(&self) -> Option<String> {
+        self.otp_hash.clone()
     }
 }
 
@@ -113,13 +119,17 @@ pub(crate) struct PasswordLoginInput {
 
 #[derive(InputObject, Debug, Serialize, Deserialize)]
 pub(crate) struct OTPLoginInput {
-    pub mobile: Option<String>,
+    #[graphql(validator(min_length = 6, max_length = 12))]
+    pub mobile: String,
 }
 
 #[derive(InputObject, Debug, Serialize, Deserialize)]
 pub(crate) struct VerifyOTPLoginInput {
-    pub mobile: Option<String>,
-    pub otp: Option<String>,
+    #[graphql(validator(min_length = 6, max_length = 12))]
+    pub mobile: String,
+
+    #[graphql(validator(min_length = 4, max_length = 4))]
+    pub otp: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,7 +1,7 @@
-use bcrypt::{hash, verify, DEFAULT_COST};
-
 use crate::db::GraphQLResult;
 use async_graphql::Error;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use rand::prelude::*;
 
 pub(crate) trait CheckOTP {
     fn get_hashed_otp(&self) -> Option<String>;
@@ -24,20 +24,14 @@ pub(crate) trait CheckOTP {
     }
 }
 
-pub(crate) trait HashOTP {
-    fn get_otp(&self) -> Option<String>;
-    fn set_otp(&mut self, otp: String);
+pub(crate) fn hash_otp(otp: String) -> GraphQLResult<String> {
+    hash(otp, DEFAULT_COST).map_err(|_| Error::new("failed to hash otp"))
+}
 
-    fn hash_otp(&mut self) -> GraphQLResult<bool> {
-        if let Some(otp) = self.get_otp() {
-            let hashed = match hash(otp, DEFAULT_COST) {
-                Ok(hashed) => hashed,
-                Err(_) => return Err(Error::new("failed to hash otp")),
-            };
+pub(crate) fn generate_otp() -> String {
+    let mut rng = rand::thread_rng();
 
-            self.set_otp(hashed)
-        }
+    let x = rng.gen_range(1000..9999);
 
-        Ok(true)
-    }
+    format!("{}", x)
 }

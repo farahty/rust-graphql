@@ -4,6 +4,7 @@ use async_graphql::*;
 use futures::TryStreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId, Document},
+    options::UpdateModifications,
     Client, Database,
 };
 use serde::{de::DeserializeOwned, Serialize};
@@ -72,5 +73,24 @@ pub(crate) async fn create<T: DeserializeOwned + Unpin + Sync + Send, I: Seriali
     Ok(database
         .collection::<T>(collection)
         .find_one(doc! {"_id": results.inserted_id}, None)
+        .await?)
+}
+
+pub(crate) async fn update_by_id<T: DeserializeOwned + Unpin + Sync + Send>(
+    ctx: &Context<'_>,
+    collection: &str,
+    id: ObjectId,
+    doc: impl Into<UpdateModifications>,
+) -> GraphQLResult<Option<T>> {
+    let database = ctx.data::<Database>()?;
+
+    let results = database
+        .collection::<T>(collection)
+        .update_one(doc! {"_id": id}, doc, None)
+        .await?;
+
+    Ok(database
+        .collection::<T>(collection)
+        .find_one(doc! {"_id": results.upserted_id}, None)
         .await?)
 }

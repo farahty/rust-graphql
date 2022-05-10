@@ -7,7 +7,7 @@ use crate::{
         CreateUserInput, LoginResponse, OTPLoginInput, PasswordLoginInput, User, UserStatus,
         VerifyOTPLoginInput,
     },
-    utils::{CheckPassword, HashPassword},
+    utils::{generate_otp, hash_otp, CheckOTP, CheckPassword, HashPassword},
 };
 
 const COLLECTION: &str = "users";
@@ -84,31 +84,88 @@ impl UsersMutation {
         Ok(Some(response))
     }
 
-    async fn otp_login(&self, _ctx: &Context<'_>, _input: OTPLoginInput) -> GraphQLResult<bool> {
+    async fn otp_login(&self, ctx: &Context<'_>, input: OTPLoginInput) -> GraphQLResult<bool> {
         // create filter object to find if there is an already user
+        // todo: security check , the identity should be valid email or mobile number
+        let filter = doc! { "mobile": { "$regex": input.mobile.clone() } };
 
         // find the user on db
 
-        // generate new otp code
+        let results: Option<User> = db::find_one(ctx, COLLECTION, filter).await?;
+        let user = match results {
+            Some(u) => u,
+            // create new user on db if there is no user
+            None => {
+                let results: Option<User> =
+                    db::create(ctx, COLLECTION, doc! {"mobile": input.mobile}).await?;
+                match results {
+                    Some(u) => u,
+                    None => return Err(Error::new("failed to create temporary user")),
+                }
+            }
+        };
+
+        // generate and hash new otp code
+
+        let otp = generate_otp();
+        let hashed_otp = hash_otp(otp.clone())?;
 
         // send sms to user mobile with otp code
-
-        // hashing the otp
-
-        // create new user on db if there is no user
+        dbg!(otp);
 
         // save the hash on db
 
-        // return success
+        if let Some(user_id) = user.id {
+            let doc = doc! {"$set": {"otp_hash": hashed_otp}};
+            let _: Option<User> = db::update_by_id(ctx, COLLECTION, user_id, doc).await?;
+
+            return Ok(true);
+        }
 
         Ok(false)
     }
 
     async fn verify_otp_login(
         &self,
-        _ctx: &Context<'_>,
-        _input: VerifyOTPLoginInput,
+        ctx: &Context<'_>,
+        input: VerifyOTPLoginInput,
     ) -> GraphQLResult<Option<LoginResponse>> {
-        Ok(None)
+        // todo: security check , the identity should be valid email or mobile number
+        let filter = doc! { "mobile": { "$regex": input.mobile.clone() } };
+        let results: Option<User> = db::find_one(ctx, COLLECTION, filter).await?;
+        let user = match results {
+            Some(u) => u,
+            None => return Err(Error::new("user not found")),
+        };
+
+        // check otp
+        user.check_otp(input.otp)?;
+
+        // check if the user is active
+
+        match user.status {
+            UserStatus::Active => {}
+            UserStatus::Expired => return Err(Error::new("user expired")),
+            UserStatus::Blocked => return Err(Error::new("user blocked")),
+            UserStatus::Suspended => return Err(Error::new("user Suspended")),
+        }
+
+        // create access token
+
+        let access_token = user.generate_access_token()?;
+
+        // create refresh token
+
+        let refresh_token = user.generate_refresh_token()?;
+
+        // create response payload
+
+        let response = LoginResponse {
+            access_token,
+            refresh_token,
+            user: user.get_jwt_user(),
+        };
+
+        Ok(Some(response))
     }
 }
