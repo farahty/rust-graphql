@@ -1,6 +1,7 @@
 mod db;
 mod models;
 mod resolvers;
+mod utils;
 
 use std::error::Error;
 use std::fs::File;

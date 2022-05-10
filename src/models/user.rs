@@ -1,48 +1,14 @@
 use async_graphql::*;
-use bcrypt::{hash, verify, DEFAULT_COST};
+
+use jsonwebtoken::{encode, EncodingKey, Header};
 use mongodb::bson::oid::ObjectId;
+use parse_duration::parse;
 use serde::{Deserialize, Serialize};
 
-use crate::db::GraphQLResult;
-
-pub(crate) trait HashPassword {
-    fn get_password(&self) -> Option<String>;
-    fn set_password(&mut self, password: String);
-
-    fn hash_password(&mut self) -> GraphQLResult<bool> {
-        if let Some(password) = self.get_password() {
-            let hashed = match hash(password, DEFAULT_COST) {
-                Ok(hashed) => hashed,
-                Err(_) => return Err(Error::new("failed to hash password")),
-            };
-
-            self.set_password(hashed)
-        }
-
-        Ok(true)
-    }
-}
-
-pub(crate) trait CheckPassword {
-    fn get_hashed_password(&self) -> Option<String>;
-
-    fn check_password(&self, password: String) -> GraphQLResult<bool> {
-        if let Some(hash) = self.get_hashed_password() {
-            match verify(password, &hash) {
-                Ok(ok) => {
-                    if ok {
-                        return Ok(true);
-                    } else {
-                        return Err(Error::new("password not match"));
-                    }
-                }
-                Err(_) => return Err(Error::new("failed to verify the password")),
-            }
-        }
-
-        Err(Error::new("password not available"))
-    }
-}
+use crate::{
+    db::GraphQLResult,
+    utils::{CheckPassword, HashPassword},
+};
 
 #[derive(SimpleObject, Debug, Serialize, Deserialize)]
 pub(crate) struct User {
@@ -53,10 +19,15 @@ pub(crate) struct User {
     pub password: Option<String>,
     pub mobile: Option<String>,
     pub token: Option<String>,
+
+    #[serde(default)]
     pub role: Role,
 
-    #[serde(default = "bool::default")]
+    #[serde(default)]
     pub verified: bool,
+
+    #[serde(default)]
+    pub status: UserStatus,
 }
 
 impl CheckPassword for User {
@@ -84,6 +55,26 @@ pub(crate) struct LoginResponse {
 pub(crate) enum Role {
     User,
     Admin,
+}
+
+impl Default for Role {
+    fn default() -> Self {
+        Self::User
+    }
+}
+
+#[derive(Enum, Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub(crate) enum UserStatus {
+    Active,
+    Expired,
+    Blocked,
+    Suspended,
+}
+
+impl Default for UserStatus {
+    fn default() -> Self {
+        Self::Active
+    }
 }
 
 #[derive(InputObject, Debug, Serialize, Deserialize)]
@@ -128,4 +119,79 @@ pub(crate) struct OTPLoginInput {
 pub(crate) struct VerifyOTPLoginInput {
     pub mobile: Option<String>,
     pub otp: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct JwtClaims {
+    pub sub: String,
+    exp: u64,
+    user: JwtUser,
+}
+
+impl User {
+    pub fn get_jwt_user(&self) -> JwtUser {
+        let id = match self.id {
+            Some(id) => id,
+            None => ObjectId::default(),
+        };
+
+        JwtUser {
+            email: self.email.clone(),
+            id,
+            mobile: self.mobile.clone(),
+            role: self.role,
+        }
+    }
+
+    pub fn generate_access_token(&self) -> GraphQLResult<String> {
+        let duration_str = std::env::var("ACCESS_TOKEN_EXPIRY")
+            .map_err(|_| Error::new("failed to load access token expiry form env"))?;
+
+        let duration = parse(duration_str.as_str())
+            .map_err(|_| Error::new("failed to parse access token expiry string"))?;
+
+        let secret = std::env::var("ACCESS_TOKEN_SECRET")
+            .map_err(|_| Error::new("failed to load access token secret from env"))?;
+
+        let exp = jsonwebtoken::get_current_timestamp() + duration.as_secs();
+
+        let user = self.get_jwt_user();
+        let sub = user.id.to_hex();
+
+        let claims = JwtClaims { sub, exp, user };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(secret.as_ref()),
+        )?;
+
+        Ok(token)
+    }
+
+    pub fn generate_refresh_token(&self) -> GraphQLResult<String> {
+        let duration_str = std::env::var("REFRESH_TOKEN_EXPIRY")
+            .map_err(|_| Error::new("failed to load refresh token expiry form env"))?;
+
+        let duration = parse(duration_str.as_str())
+            .map_err(|_| Error::new("failed to parse refresh token expiry string"))?;
+
+        let secret = std::env::var("REFRESH_TOKEN_SECRET")
+            .map_err(|_| Error::new("failed to load refresh token secret from env"))?;
+
+        let exp = jsonwebtoken::get_current_timestamp() + duration.as_secs();
+
+        let user = self.get_jwt_user();
+        let sub = user.id.to_hex();
+
+        let claims = JwtClaims { sub, exp, user };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(secret.as_ref()),
+        )?;
+
+        Ok(token)
+    }
 }
