@@ -19,6 +19,7 @@ pub(crate) struct User {
     pub password: Option<String>,
     pub mobile: Option<String>,
     pub token: Option<String>,
+    pub otp_hash: Option<String>,
 
     #[serde(default)]
     pub role: Role,

@@ -85,6 +85,22 @@ impl UsersMutation {
     }
 
     async fn otp_login(&self, _ctx: &Context<'_>, _input: OTPLoginInput) -> GraphQLResult<bool> {
+        // create filter object to find if there is an already user
+
+        // find the user on db
+
+        // generate new otp code
+
+        // send sms to user mobile with otp code
+
+        // hashing the otp
+
+        // create new user on db if there is no user
+
+        // save the hash on db
+
+        // return success
+
         Ok(false)
     }
 
