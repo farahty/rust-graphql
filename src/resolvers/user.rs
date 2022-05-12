@@ -37,7 +37,7 @@ impl UsersMutation {
         mut user: CreateUserInput,
     ) -> GraphQLResult<Option<User>> {
         user.hash_password()?;
-        db::create(ctx, COLLECTION, user).await
+        db::create(ctx, COLLECTION, user.try_into()?).await
     }
 
     async fn password_login(
@@ -116,7 +116,7 @@ impl UsersMutation {
         // save the hash on db
 
         if let Some(user_id) = user.id {
-            let doc = doc! {"$set": {"otp_hash": hashed_otp}};
+            let doc = doc! {"otp_hash": hashed_otp};
             let _: Option<User> = db::update_by_id(ctx, COLLECTION, user_id, doc).await?;
 
             return Ok(true);

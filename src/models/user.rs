@@ -1,7 +1,7 @@
 use async_graphql::*;
 
 use jsonwebtoken::{encode, EncodingKey, Header};
-use mongodb::bson::oid::ObjectId;
+use mongodb::bson::{oid::ObjectId, to_document, Document};
 use parse_duration::parse;
 use serde::{Deserialize, Serialize};
 
@@ -91,6 +91,14 @@ pub(crate) struct CreateUserInput {
     pub password: Option<String>,
     pub mobile: Option<String>,
     pub role: Role,
+}
+
+impl TryFrom<CreateUserInput> for Document {
+    type Error = Error;
+
+    fn try_from(value: CreateUserInput) -> Result<Self, Self::Error> {
+        to_document(&value).map_err(|_| Error::new("failed to Serialize user inputs"))
+    }
 }
 
 impl HashPassword for CreateUserInput {

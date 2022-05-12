@@ -37,9 +37,7 @@ async fn index(
         Ok(user) => {
             req = req.data(user);
         }
-        Err(e) => {
-            println!("{:?}", e);
-        }
+        Err(_) => {}
     }
 
     schema.execute(req).await.into()

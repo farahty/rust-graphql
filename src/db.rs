@@ -1,13 +1,13 @@
-use std::borrow::Borrow;
-
 use async_graphql::*;
+use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId, Document},
-    options::UpdateModifications,
     Client, Database,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
+
+use crate::models::JwtUser;
 
 pub type GraphQLResult<T> = std::result::Result<T, Error>;
 
@@ -58,15 +58,21 @@ pub(crate) async fn find_one<T: DeserializeOwned + Unpin + Sync + Send>(
     Ok(coll.find_one(filter, None).await?)
 }
 
-pub(crate) async fn create<T: DeserializeOwned + Unpin + Sync + Send, I: Serialize>(
+pub(crate) async fn create<T: DeserializeOwned + Unpin + Sync + Send>(
     ctx: &Context<'_>,
     collection: &str,
-    doc: impl Borrow<I>,
+    mut doc: Document,
 ) -> GraphQLResult<Option<T>> {
     let database = ctx.data::<Database>()?;
 
+    doc.extend(doc! {"created_at": Utc::now()});
+
+    if let Ok(user) = ctx.data::<JwtUser>() {
+        doc.extend(doc! { "created_by": user.id, "owner": user.id });
+    }
+
     let results = database
-        .collection::<I>(collection)
+        .collection(collection)
         .insert_one(doc, None)
         .await?;
 
@@ -80,13 +86,19 @@ pub(crate) async fn update_by_id<T: DeserializeOwned + Unpin + Sync + Send>(
     ctx: &Context<'_>,
     collection: &str,
     id: ObjectId,
-    doc: impl Into<UpdateModifications>,
+    mut doc: Document,
 ) -> GraphQLResult<Option<T>> {
     let database = ctx.data::<Database>()?;
 
+    doc.extend(doc! { "updated_at": Utc::now() });
+
+    if let Ok(user) = ctx.data::<JwtUser>() {
+        doc.extend(doc! { "updated_by": user.id });
+    }
+
     let results = database
         .collection::<T>(collection)
-        .update_one(doc! {"_id": id}, doc, None)
+        .update_one(doc! {"_id": id}, doc! {"$set": doc}, None)
         .await?;
 
     Ok(database
