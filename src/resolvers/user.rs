@@ -37,7 +37,7 @@ impl UsersMutation {
         mut user: CreateUserInput,
     ) -> GraphQLResult<Option<User>> {
         user.hash_password()?;
-        db::create(ctx, COLLECTION, user.try_into()?).await
+        db::create(ctx, COLLECTION, user).await
     }
 
     async fn password_login(

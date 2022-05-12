@@ -2,10 +2,10 @@ use async_graphql::*;
 use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::{
-    bson::{doc, oid::ObjectId, Document},
+    bson::{doc, oid::ObjectId, to_document, Document},
     Client, Database,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::models::JwtUser;
 
@@ -61,9 +61,11 @@ pub(crate) async fn find_one<T: DeserializeOwned + Unpin + Sync + Send>(
 pub(crate) async fn create<T: DeserializeOwned + Unpin + Sync + Send>(
     ctx: &Context<'_>,
     collection: &str,
-    mut doc: Document,
+    data: impl Serialize,
 ) -> GraphQLResult<Option<T>> {
     let database = ctx.data::<Database>()?;
+
+    let mut doc = to_document(&data).map_err(|_| Error::new("failed to Serialize user inputs"))?;
 
     doc.extend(doc! {"created_at": Utc::now()});
 
