@@ -88,10 +88,11 @@ pub(crate) async fn update_by_id<T: DeserializeOwned + Unpin + Sync + Send>(
     ctx: &Context<'_>,
     collection: &str,
     id: ObjectId,
-    mut doc: Document,
+    data: impl Serialize,
 ) -> GraphQLResult<Option<T>> {
     let database = ctx.data::<Database>()?;
 
+    let mut doc = to_document(&data).map_err(|_| Error::new("failed to Serialize user inputs"))?;
     doc.extend(doc! { "updated_at": Utc::now() });
 
     if let Ok(user) = ctx.data::<JwtUser>() {
