@@ -27,6 +27,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .data(schema)
         .data(database.clone());
 
+
     let server = Server::new(TcpListener::bind(format!("0.0.0.0:{}", port)));
 
     println!("🚀 Server start at http://localhost:{}/", port);
