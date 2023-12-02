@@ -18,13 +18,11 @@ pub async fn graphql_endpoint(
     req: GraphQLRequest,
 ) -> GraphQLResponse {
     let mut req = req.0;
-
     match get_user_from_header(headers) {
         Ok(user) => {
             req = req.data(user);
         }
         Err(_) => {}
     }
-
     schema.execute(req).await.into()
 }
